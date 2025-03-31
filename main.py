@@ -6,7 +6,8 @@ from vpython_3d_viewer import Point, Link, Individual, visualize_individual,visu
 from math import sin, cos, tan,pi
 from itertools import combinations
 
-import multiprocessing
+from joblib import Parallel, delayed
+
 
 POPULATION_SIZE = 100
 NUM_POINTS = 20
@@ -16,12 +17,14 @@ MAX_ITERATION = 100
 SMOOTHING = [0.5,100]
 
 def compute_fitness_parallel(individual):
-    return compute_fitness(individual), individual
+    return compute_fitness(individual)*SMOOTHING[0] + SMOOTHING[1], individual
 
 def evaluate_population_fitness(population):
-    with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
-        fitness_scores = pool.map(compute_fitness_parallel, population)
-    return sorted(fitness_scores, key=lambda x: x[0])  # Sort by fitness
+    # with multiprocessing.Pool(processes=multiprocessing.cpu_count()//2) as pool:
+    #     fitness_scores = pool.map(compute_fitness_parallel, population)
+    # return sorted(fitness_scores, key=lambda x: x[0])  # Sort by fitness
+    fitness_scores = Parallel(n_jobs=-2)(delayed(compute_fitness_parallel)(ind) for ind in population)
+    return sorted(fitness_scores, key=lambda x: x[0])
 
 def blend_crossover(parent1, parent2):
     mid = len(parent1.points) // 2
@@ -159,7 +162,7 @@ def genetic_algorithm():
     Most_fits = []
     all_Max_fitnesses = [] 
     for generation in range(MAX_ITERATION):
-        fitness_scores = [(compute_fitness(ind)*SMOOTHING[0] + SMOOTHING[1], ind) for ind in population]
+        fitness_scores = evaluate_population_fitness(population)#[(compute_fitness(ind)*SMOOTHING[0] + SMOOTHING[1], ind) for ind in population]
         fitness_scores.sort(key=lambda x: x[0])
         
         new_population = fitness_scores[:POPULATION_SIZE // 2]
